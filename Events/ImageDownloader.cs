@@ -19,51 +19,18 @@ namespace Events
         public event MethodContainer ImageCompleted;
         public async Task DownloadAsync(string uri, string fileName, CancellationToken token)
         {
-            HttpClient _httpClient = new HttpClient();
-            if (token.IsCancellationRequested) return;
-            if (ImageStarted != null) ImageStarted(fileName);
-
-            var response = await _httpClient.GetAsync(uri);
-            response.EnsureSuccessStatusCode();
-            byte[] bytes = await response.Content.ReadAsByteArrayAsync();
-            _ = File.WriteAllBytesAsync(fileName, bytes);
-
-            if (ImageCompleted != null) ImageCompleted(fileName);
-        }
-
-        public void LoadingStarted(string fileName)
-        {
-            Console.WriteLine($"File: {fileName} download has started");
-        }
-
-        public void LoadingCompleted(string fileName)
-        {
-            Console.WriteLine($"File: {fileName} download has completed");
-        }
-
-        public void MonitorKeypress(CancellationTokenSource cts, Dictionary<string, Task> tasks)
-        {
-            ConsoleKeyInfo consoleKeyInfo;
-
-            do
+            using (HttpClient _httpClient = new())
             {
-                consoleKeyInfo = Console.ReadKey(true);
+                HttpResponseMessage response = await _httpClient.GetAsync(uri, token);
 
-                if (consoleKeyInfo.Key == ConsoleKey.A) cts.Cancel();
-                else 
-                {
-                    Console.WriteLine();
-                    foreach (var tsak in tasks)
-                    {
-                        bool taskComplete = tsak.Value.IsCompleted;
-                        Console.WriteLine($"File: {tsak.Key}; loading:{taskComplete}");
-                        Task.Delay(300);
-                    }
-                }
-                if (cts.IsCancellationRequested) return;
+                if (ImageStarted != null) ImageStarted(fileName);
+                
+                response.EnsureSuccessStatusCode();
+                byte[] bytes = await response.Content.ReadAsByteArrayAsync(token);
+                _ = File.WriteAllBytesAsync(fileName, bytes, token);
 
-            } while (true);
+                if (ImageCompleted != null) ImageCompleted(fileName);
+            }
         }
-
     }
 }
